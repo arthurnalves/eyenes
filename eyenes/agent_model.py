@@ -16,19 +16,24 @@ import numpy as np
 class AgentModel:
     
     model = None
+    eye_model = None
+    action_model = None
     input_shape = None
     output_dim = None
     activation = None
     buffer = None
+    eye_output_dim = None
     
     def __init__(self, buffer, input_shape, output_dim, activation = 'relu'):
         self.buffer = buffer
         self.input_shape = input_shape
         self.output_dim = output_dim
         self.activation = activation
-        self.get_model()
+        self.eye_output_dim = 64
+        self.start_model()
+        
     
-    def get_conv_model(self):
+    def start_eye_model(self):
         w, h, _ = self.input_shape
         max_dim = max([w,h])
         activation = self.activation
@@ -44,11 +49,30 @@ class AgentModel:
         conv_model.add(Conv2D(16,4, strides=(2, 2), padding="same", activation=activation))
 
         conv_model.add(Flatten())
-        conv_model.add(Dense(64, activation= activation))
-        return conv_model
-    
-    def get_model(self):
+        conv_model.add(Dense(self.eye_output_dim, activation= activation))
         
+        self.eye_model = conv_model
+    
+    def start_action_model(self):
+        
+        output_imgs = []
+        for i in range(self.buffer):
+            output_imgs.append(Input((self.eye_output_dim,)))
+        
+        output = Concatenate(axis = -1)(output_imgs)
+        output = Reshape([self.buffer, self.eye_output_dim])(output)
+        output = LSTM(self.eye_output_dim, activation = 'softmax')(output)
+        output = Dense(self.output_dim, activation = self.activation)(output)
+        
+        self.action_model = Model(inputs = output_imgs, outputs = output)
+        
+    def start_model(self):
+        if self.eye_model == None:
+            self.start_eye_model()
+        
+        if self.action_model == None:
+            self.start_action_model()
+            
         input_imgs = []
         for i in range(self.buffer):
             input_imgs.append(Input(self.input_shape))
@@ -56,15 +80,15 @@ class AgentModel:
         output_imgs = []
         for input_img in input_imgs:
             output_img = input_img
-            for layer in self.get_conv_model().layers:
+            for layer in self.eye_model.layers:
                 output_img = layer(output_img)
             output_imgs.append(output_img)
-    
-        output = Concatenate(axis = -1)(output_imgs)
-        output = Reshape([self.buffer, 64])(output)
-        output = LSTM(self.output_dim, activation = 'softmax')(output)
-        
-        self.model = Model(inputs = input_imgs, outputs = output)
+            
+        output = output_imgs
+        for layer in self.action_model.layers:
+            output = layer(output)
+            
+        self.model = Model(inputs = input_imgs, outputs = output)        
         
     def mutate(self, freq, intensity):
         mutated_weights = []
