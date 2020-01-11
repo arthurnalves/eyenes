@@ -12,8 +12,6 @@ from keras.initializers import glorot_uniform
 import numpy as np
 import random
 
-
-
 class AgentModel:
     
     model = None
@@ -45,60 +43,57 @@ class AgentModel:
         max_dim = max([w,h])
         activation = self.activation
 
-        c = self.input_shape[-1]
-
         self.eye_model = Sequential()
 
-        self.eye_model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
+        self.eye_model.add(Lambda(lambda x: x/255., input_shape = self.input_shape))        
         self.eye_model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
-        self.eye_model.add(MaxPooling2D((6,6)))
+        self.eye_model.add(MaxPooling2D((4,4)))
 
-        self.eye_model.add(Conv2D(c*2, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*8, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*16,4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*32,4, strides=(2, 2), padding="same", activation=activation))
+        self.eye_model.add(Conv2D(4, 4, strides=(2, 2), padding="same", activation=activation))
+        self.eye_model.add(Conv2D(8, 4, strides=(2, 2), padding="same", activation=activation))
+        self.eye_model.add(Conv2D(16,4, strides=(2, 2), padding="same", activation=activation))
+        self.eye_model.add(Conv2D(32,4, strides=(2, 2), padding="same", activation=activation))
+        self.eye_model.add(Conv2D(64,4, strides=(2, 2), padding="same", activation=activation))
 
         self.eye_model.add(Flatten())
         self.eye_model.add(Dense(self.eye_output_dim, activation= activation))
 
     def start_action_model(self):
         
-        output_imgs = Input(batch_shape = (1, self.eye_output_dim))
-        output = Dense(self.eye_output_dim, activation = self.activation)(output_imgs)
-        output = Dense(self.eye_output_dim, activation = self.activation)(output)
-        output = Dense(self.output_dim,     activation = self.activation)(output)
-        output = Reshape(np.append(1, self.output_dim))(output)
-        output = LSTM(self.output_dim, activation = self.activation, stateful = True)(output)
-
+        output_imgs = []
+        for i in range(self.buffer):
+            output_imgs.append(Input((self.eye_output_dim,)))
+        
+        output = Concatenate(axis = -1)(output_imgs)
+        output = Reshape([self.buffer, self.eye_output_dim])(output)
+        output = LSTM(self.eye_output_dim, activation = self.activation)(output)
+        output = Dense(self.output_dim, activation = self.activation)(output)
+        
         self.action_model = Model(inputs = output_imgs, outputs = output)
 
     def start_model(self):
-        w, h, _ = self.input_shape
-        max_dim = max([w,h])
-        activation = self.activation
-
-        c = self.input_shape[-1]
-
-        self.model = Sequential()
-
-        self.model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
-        self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
-        self.model.add(MaxPooling2D((4,4)))
-
-        self.model.add(Conv2D(c*2, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*8, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*16,4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*32,4, strides=(2, 2), padding="same", activation=activation))
-
-        self.model.add(Flatten())
-        self.model.add(Dense(self.eye_output_dim*4, activation= activation))
-        self.model.add(Dense(self.eye_output_dim*2, activation = self.activation))
+        if self.eye_model == None:
+            self.start_eye_model()
         
-        #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
-        #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
-        self.model.add(Dense(self.output_dim, activation = self.activation))
+        if self.action_model == None:
+            self.start_action_model()
+            
+        input_imgs = []
+        for i in range(self.buffer):
+            input_imgs.append(Input(self.input_shape))
+
+        output_imgs = []
+        for input_img in input_imgs:
+            output_img = input_img
+            for layer in self.eye_model.layers:
+                output_img = layer(output_img)
+            output_imgs.append(output_img)
+            
+        output = output_imgs
+        for layer in self.action_model.layers:
+            output = layer(output)
+            
+        self.model = Model(inputs = input_imgs, outputs = output)        
         
     def mutate(self, freq, intensity):
         mutated_weights = []

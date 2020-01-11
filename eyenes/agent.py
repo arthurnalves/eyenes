@@ -1,6 +1,6 @@
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 from gym import wrappers
 from IPython.display import Video
 import io
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import copy
 
-from agent_model import AgentModel
+from eyenes.agent_model import AgentModel
 
 class Agent:
     
@@ -35,12 +35,14 @@ class Agent:
     max_steps = None
     fps = None
     lazy_penalty = None
-    
-    def __init__(self, ID = -1, update = ['reward'], buffer = 3, max_steps = 500, freq = .25, intensity = .25, fps = 5):
+    patience = None
+
+    def __init__(self, ID = -1,  rom_id = 'SuperMarioBros-v2', update = ['reward'], buffer = 3, patience = 5, max_steps = 500, freq = .25, intensity = .25, fps = 5):
         
         self.buffer = buffer
         self.freq = freq
         self.intensity = intensity
+        self.rom_id = rom_id
         self.env = self.make_env()
         self.start_model()
         self.update = update
@@ -49,15 +51,16 @@ class Agent:
         self.max_steps = max_steps
         self.lineage = []
         self.fps = fps
+        self.patience = patience
         self.lazy_penalty = -30
         self.death_penalty = -50
-        for _ in range(buffer):
+        for _ in range(buffer*fps):
             self.state.append(np.zeros(self.env.observation_space.shape))
         
         
-    def make_env(self, mode = None, rom_id = 'SuperMarioBros-v0'):
-        env = gym_super_mario_bros.make(rom_id)
-        env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    def make_env(self, mode = None):
+        env = gym_super_mario_bros.make(self.rom_id)
+        env = JoypadSpace(env, MOVEMENT)
         if mode == 'monitor':
             env = wrappers.Monitor(env, directory, force = True)
         return env 
@@ -73,10 +76,8 @@ class Agent:
         return buffered_states
     
     def take_action(self):
-        input_imgs = []
-        for input_img in self.get_buffered_images():
-            input_imgs.append(np.expand_dims(input_img, axis = 0))
-        prediction = self.model.predict(input_imgs)
+        buffered_imgs = self.get_buffered_images()
+        prediction = self.model.predict(np.expand_dims(np.concatenate(buffered_imgs, axis = 2), axis = 0))
         return np.argmax(prediction)
 
     def reset_data(self):
@@ -92,18 +93,19 @@ class Agent:
         self.total_reward += reward
         if step%self.fps == 0:
             self.state.append(np.array(state))
-
-    def run(self, max_steps = 500, mode = None, directory = './gym-results/'):    
+            
+    def run(self, mode = None, directory = './gym-results/'):    
         env = self.make_env(mode = mode)
         self.reset_data()
         
-        patience = 3
+        self.model.model.reset_states()
+
         resting = 0
         x_pos = 0
         state = env.reset()
         prev_state = state
         done = False
-        for step in range(max_steps):
+        for step in range(self.max_steps):
 
             if step%self.fps == 0:
                 action = self.take_action()
@@ -117,12 +119,16 @@ class Agent:
             if abs(info['x_pos'] - x_pos) < 5:
                 resting += 1
                 
-            if resting > patience*60:
+            if resting > self.patience*60:
                 self.total_reward += self.lazy_penalty
+                self.total_reward += info['score']/100
+                #self.total_reward += info['time']/10
                 break
                 
             if info['life'] < 2: 
                 self.total_reward += self.death_penalty
+                self.total_reward += info['score']/100
+                #self.total_reward += info['time']/10
                 break
 
             self.gather_data(step, state, reward, done, info, next_state)
@@ -139,7 +145,9 @@ class Agent:
 
         if mode == 'render':    
             env.close()
-    
+        self.total_reward += info['score']/10
+        #self.total_reward += info['time']/10
+                
     def get_reward(self):
         if self.total_reward == None:
             self.run()
@@ -154,7 +162,7 @@ class Agent:
         if other.ID not in self.lineage:
             self.lineage.append(other.ID)
             
-        self.model.set_weights(other.model.get_weights())
+        self.model.set_weights(copy.deepcopy(other.model.get_weights()))
 
     def mutate(self):
         self.model.mutate(freq = self.freq, intensity = self.intensity)
