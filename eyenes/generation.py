@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from eyenes.agent import Agent
 import pickle
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 
 class Generation:
     
@@ -23,7 +24,7 @@ class Generation:
     mode = None
     similar_penalty = False
     
-    def __init__(self, size, num_survivors, buffer,  rom_id = 'SuperMarioBros-v2', patience = 5, similar_penalty = 1, fps = 5, freq = .25, layer_prob = .25, intensity = .25, wait = 10, max_steps = 500, mode = 'sequential'):
+    def __init__(self, size, num_survivors, buffer, movement = MOVEMENT, rom_id = 'SuperMarioBros-v2', patience = 5, similar_penalty = 1, fps = 5, freq = .25, layer_prob = .25, intensity = .25, wait = 10, max_steps = 500, mode = 'sequential'):
         self.size = size
         self.num_survivors = num_survivors
         self.num_engines = num_survivors
@@ -36,7 +37,7 @@ class Generation:
         self.similar_penalty = similar_penalty
         self.rom_id = rom_id
         for ID in range(self.size):
-            self.agents.append(Agent(ID = ID, rom_id = self.rom_id, buffer = buffer, patience = patience, max_steps = max_steps, freq = freq, intensity = intensity, fps = fps))
+            self.agents.append(Agent(ID = ID, movement= movement, rom_id = self.rom_id, buffer = buffer, patience = patience, max_steps = max_steps, freq = freq, intensity = intensity, fps = fps))
         self.new_ID = ID + 1
         
     def start_engines(self, num_engines):

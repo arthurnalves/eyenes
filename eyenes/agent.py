@@ -37,12 +37,13 @@ class Agent:
     lazy_penalty = None
     patience = None
 
-    def __init__(self, ID = -1,  rom_id = 'SuperMarioBros-v2', update = ['reward'], buffer = 3, patience = 5, max_steps = 500, freq = .25, intensity = .25, fps = 5):
+    def __init__(self, ID = -1, movement = MOVEMENT, rom_id = 'SuperMarioBros-v2', update = ['reward'], buffer = 3, patience = 5, max_steps = 500, freq = .25, intensity = .25, fps = 5):
         
         self.buffer = buffer
         self.freq = freq
         self.intensity = intensity
         self.rom_id = rom_id
+        self.movement = movement
         self.env = self.make_env()
         self.start_model()
         self.update = update
@@ -60,7 +61,7 @@ class Agent:
         
     def make_env(self, mode = None):
         env = gym_super_mario_bros.make(self.rom_id)
-        env = JoypadSpace(env, MOVEMENT)
+        env = JoypadSpace(env, self.movement)
         if mode == 'monitor':
             env = wrappers.Monitor(env, directory, force = True)
         return env 
@@ -117,7 +118,7 @@ class Agent:
                 resting = 0
                 
             if abs(info['x_pos'] - x_pos) < 5:
-                resting += 1
+                resting += 3
                 
             if resting > self.patience*60:
                 self.total_reward += self.lazy_penalty

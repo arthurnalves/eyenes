@@ -8,11 +8,22 @@ from keras.utils import to_categorical
 from keras.optimizers import RMSprop
 from keras.models import model_from_json
 from keras.initializers import glorot_uniform
+from keras.activations import relu
 
 import numpy as np
 import random
 
+# Custom activation function
+from keras.layers import Activation
+from keras import backend as K
+from keras.utils.generic_utils import get_custom_objects
+from keras.backend import switch
 
+
+from keras import backend as K
+
+def custom_activation(x):
+    return K.switch(x > 1, K.ones_like(x), K.switch(x < -1, -K.ones_like(x), K.zeros_like(x)))
 
 class AgentModel:
     
@@ -26,7 +37,7 @@ class AgentModel:
     eye_output_dim = None
     layer_prob = None
     
-    def __init__(self, buffer, input_shape, output_dim, eye_output_dim = 64, activation = 'relu'):
+    def __init__(self, buffer, input_shape, output_dim, eye_output_dim = 64, activation = relu):
         self.buffer = buffer
         w, h, c = input_shape
         self.input_shape = (w, h, c*buffer)
@@ -38,40 +49,6 @@ class AgentModel:
         else:
             self.eye_output_dim = eye_output_dim
         self.start_model()
-        
-    
-    def start_eye_model(self):
-        w, h, _ = self.input_shape
-        max_dim = max([w,h])
-        activation = self.activation
-
-        c = self.input_shape[-1]
-
-        self.eye_model = Sequential()
-
-        self.eye_model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
-        self.eye_model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
-        self.eye_model.add(MaxPooling2D((6,6)))
-
-        self.eye_model.add(Conv2D(c*2, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*8, 4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*16,4, strides=(2, 2), padding="same", activation=activation))
-        self.eye_model.add(Conv2D(c*32,4, strides=(2, 2), padding="same", activation=activation))
-
-        self.eye_model.add(Flatten())
-        self.eye_model.add(Dense(self.eye_output_dim, activation= activation))
-
-    def start_action_model(self):
-        
-        output_imgs = Input(batch_shape = (1, self.eye_output_dim))
-        output = Dense(self.eye_output_dim, activation = self.activation)(output_imgs)
-        output = Dense(self.eye_output_dim, activation = self.activation)(output)
-        output = Dense(self.output_dim,     activation = self.activation)(output)
-        output = Reshape(np.append(1, self.output_dim))(output)
-        output = LSTM(self.output_dim, activation = self.activation, stateful = True)(output)
-
-        self.action_model = Model(inputs = output_imgs, outputs = output)
 
     def start_model(self):
         w, h, _ = self.input_shape
@@ -84,21 +61,26 @@ class AgentModel:
 
         self.model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
-        self.model.add(MaxPooling2D((4,4)))
+        self.model.add(AveragePooling2D((4,4)))
 
-        self.model.add(Conv2D(c*2, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*8, 4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*16,4, strides=(2, 2), padding="same", activation=activation))
-        self.model.add(Conv2D(c*32,4, strides=(2, 2), padding="same", activation=activation))
+        self.model.add(Conv2D(c*2, 8, strides=(2, 2), padding="same"))
+        self.model.add(Activation(custom_activation))
+        self.model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same"))
+        self.model.add(Activation(custom_activation))
+        self.model.add(Conv2D(c*8, 2, strides=(2, 2), padding="same"))
+        self.model.add(Activation(custom_activation))
+        self.model.add(Conv2D(c*16,2, strides=(2, 2), padding="same"))
+        self.model.add(Activation(custom_activation))
 
         self.model.add(Flatten())
-        self.model.add(Dense(self.eye_output_dim*4, activation= activation))
+        self.model.add(Dense(self.eye_output_dim*4))
+        self.model.add(Activation(custom_activation))
         self.model.add(Dense(self.eye_output_dim*2, activation = self.activation))
+        self.model.add(Activation(custom_activation))
         
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
-        self.model.add(Dense(self.output_dim, activation = self.activation))
+        self.model.add(Dense(self.output_dim, activation = 'softmax'))
         
     def mutate(self, freq, intensity):
         mutated_weights = []
@@ -107,7 +89,7 @@ class AgentModel:
             A = A*intensity
             glorot = glorot_uniform().__call__(np.shape(weight))
             if random.random() < self.layer_prob:
-                mutated_weights.append(A*glorot + (1-A)*weight)
+                mutated_weights.append(A*glorot)
             else:
                 mutated_weights.append(weight)
 
