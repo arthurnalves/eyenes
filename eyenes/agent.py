@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import copy
+import pickle
 
 from eyenes.agent_model import AgentModel
 
@@ -189,3 +190,6 @@ class Agent:
             ax.set_xticklabels([])
             ax.set_yticklabels([])
         plt.show()
+
+    def save_model(self, directory = 'pickled/top_models/'):
+        pickle.dump(self.model.model.get_weights(), open(directory + str(self.reward) + '_weights.pkl', 'wb'))

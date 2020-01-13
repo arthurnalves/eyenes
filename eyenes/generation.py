@@ -9,6 +9,7 @@ from IPython.display import clear_output
 from eyenes.agent import Agent
 import pickle
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
+import os
 
 class Generation:
     
@@ -39,10 +40,42 @@ class Generation:
         for ID in range(self.size):
             self.agents.append(Agent(ID = ID, movement= movement, rom_id = self.rom_id, buffer = buffer, patience = patience, max_steps = max_steps, freq = freq, intensity = intensity, fps = fps))
         self.new_ID = ID + 1
-        
+        self.top_rewards = []
+
+    def create_dir(self, dirname):
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
+            print('{} created'.format(dirname))
+
+    def create_standard_dirs(self):
+        self.create_dir('pickled')
+        self.create_dir('pickled/generation')
+        self.create_dir('pickled/generation/weights')
+        self.create_dir('pickled/generation/lineages')
+        self.create_dir('pickled/top_models')
+
+    def save_generation(self):
+        pickle.dump(self.history, open('pickled/generation/history.pkl','wb'))
+        for i, agent in enumerate(self.agents):
+            pickle.dump(agent.model.model.get_weights(), open('pickled/generation/weights/weight_' + str(i) + '.pkl', 'wb'))
+            pickle.dump(agent.lineage, open('pickled/generation/lineages/lineage_' + str(i) + '.pkl', 'wb'))
+    
+    def load_generation(self):
+        current_id = 0
+        for agent in self.agents:
+            for lineage_id in agent.lineage:
+                if lineage_id > current_id:
+                    current_id = lineage_id
+        self.new_ID = current_id
+        self.history = pickle.load(open('pickled/generation/history.pkl','rb'))
+        for i, agent in enumerate(self.agents):
+            agent.model.model.set_weights(pickle.load(open('pickled/generation/weights/weight_' + str(i) + '.pkl', 'rb')))
+            agent.lineage = pickle.load(open('pickled/generation/lineages/lineage_' + str(i) + '.pkl', 'rb'))
+
+
     def start_engines(self, num_engines):
         self.agents_per_engine = self.size//self.num_engines
-        
+
         subprocess.Popen(["ipcluster", "stop"])
         time.sleep(5)
         subprocess.Popen(["ipcluster", "start", "-n={:d}".format(num_engines)])
@@ -102,9 +135,6 @@ class Generation:
             for a in range(1, self.size//self.num_survivors):
                 self.derive(e*self.size//self.num_survivors, e*self.size//self.num_survivors + a)
 
-    def save(self):
-        pickle.dump(self, open('generation.pkl', 'wb'))
-    
     def evolution_step(self, max_steps = 500, chronometer = False, plot = False):
         start_time = time.time()
         
@@ -120,6 +150,13 @@ class Generation:
             rewards = [agent.total_reward for agent in self.agents]
             self.history['rewards'].append(sorted(rewards, reverse = True))
                  
+        top_reward = np.max(rewards)
+        agent_id = np.argmax(rewards)
+
+        if top_reward not in self.top_rewards:
+            self.top_rewards.append(top_reward)
+            self.agents[agent_id].save_model()
+
         end_time = time.time()
         self.history['runtime'].append(end_time - start_time)
         

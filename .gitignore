@@ -1,0 +1,4 @@
+notebooks/pickled/
+notebooks/.ipynb_checkpoints/
+notebooks/__pycache__/
+notebooks/gym-results/
