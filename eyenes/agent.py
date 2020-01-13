@@ -106,30 +106,37 @@ class Agent:
         state = env.reset()
         prev_state = state
         done = False
+        last_x_pos = 24
+            
         for step in range(self.max_steps):
 
             if step%self.fps == 0:
                 action = self.take_action()
                 
             next_state, reward, done, info = env.step(action)
-                            
+            
+            #advancing check
             if info['x_pos'] > x_pos:
                 x_pos = info['x_pos']
                 resting = 0
-                
-            if abs(info['x_pos'] - x_pos) < 5:
-                resting += 3
+            
+            #sub-area entry check
+            if abs(last_x_pos - info['x_pos']):
+                resting = 0
+                x_pos = info['x_pos']
+
+            last_x_pos = info['x_pos']
+
+            resting += 1
                 
             if resting > self.patience*60:
                 self.total_reward += self.lazy_penalty
-                self.total_reward += info['score']/100
-                #self.total_reward += info['time']/10
+                self.total_reward += info['score']/10
                 break
                 
             if info['life'] < 2: 
                 self.total_reward += self.death_penalty
-                self.total_reward += info['score']/100
-                #self.total_reward += info['time']/10
+                self.total_reward += info['score']/10
                 break
 
             self.gather_data(step, state, reward, done, info, next_state)
