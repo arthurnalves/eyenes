@@ -2,7 +2,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 
 from keras.models import Sequential, Model
-from keras.layers import Dense, Conv2D, LSTM, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Flatten, Reshape
+from keras.layers import Dense, SeparableConv2D, Conv2D, LSTM, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Flatten, Reshape
 from keras.layers import Softmax, Input, Concatenate, Embedding, Activation, Lambda, Input
 from keras.utils import to_categorical
 from keras.optimizers import RMSprop
@@ -36,11 +36,17 @@ class AgentModel:
     buffer = None
     eye_output_dim = None
     layer_prob = None
+    black_and_white = None
     
-    def __init__(self, buffer, input_shape, output_dim, eye_output_dim = 64, activation = relu):
+    def __init__(self, buffer, input_shape, output_dim, black_and_white = False, eye_output_dim = 64, activation = custom_activation):
         self.buffer = buffer
         w, h, c = input_shape
-        self.input_shape = (w, h, c*buffer)
+        self.black_and_white = black_and_white
+        if self.black_and_white:
+            self.input_shape = (w, h, buffer)
+        else:
+            self.input_shape = (w, h, c*buffer)
+
         self.output_dim = output_dim
         self.activation = activation
         self.layer_prob = .25
@@ -58,25 +64,23 @@ class AgentModel:
         c = self.input_shape[-1]
 
         self.model = Sequential()
-
         self.model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
-        self.model.add(AveragePooling2D((4,4)))
-
-        self.model.add(Conv2D(c*2, 8, strides=(2, 2), padding="same"))
-        self.model.add(Activation(custom_activation))
-        self.model.add(Conv2D(c*4, 4, strides=(2, 2), padding="same"))
-        self.model.add(Activation(custom_activation))
-        self.model.add(Conv2D(c*8, 2, strides=(2, 2), padding="same"))
-        self.model.add(Activation(custom_activation))
-        self.model.add(Conv2D(c*16,2, strides=(2, 2), padding="same"))
-        self.model.add(Activation(custom_activation))
+        
+        self.model.add(AveragePooling2D((2,2)))
+        self.model.add(SeparableConv2D(c, 4, strides = (4,4), padding="same"))
+        self.model.add(Activation(self.activation))
+        
+        self.model.add(Conv2D(c*2, 16, strides=(2, 2), padding="same"))
+        self.model.add(Activation(self.activation))
+        self.model.add(Conv2D(c*4, 8, strides=(2, 2), padding="same"))
+        self.model.add(Activation(self.activation))
 
         self.model.add(Flatten())
-        self.model.add(Dense(self.eye_output_dim*4))
-        self.model.add(Activation(custom_activation))
-        self.model.add(Dense(self.eye_output_dim*2, activation = self.activation))
-        self.model.add(Activation(custom_activation))
+        self.model.add(Dense(400))
+        self.model.add(Activation(self.activation))
+        self.model.add(Dense(20))
+        self.model.add(Activation(self.activation))
         
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
