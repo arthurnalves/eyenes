@@ -17,19 +17,19 @@ from IPython.display import display, HTML
 
 class Generation:
 
-    def __init__(self, size, num_survivors, buffer, movement = MOVEMENT, black_and_white = None, rom_id = 'SuperMarioBros-v2', patience = 5, similar_penalty = 1, fps = 5, freq = .25, layer_prob = .25, intensity = .25, wait = 10, max_steps = 500, mode = 'sequential'):
-        self.size = size
-        self.num_survivors = num_survivors
-        self.num_engines = num_survivors
-        self.black_and_white = black_and_white
+    def __init__(self, **kwargs):
+        self.size = kwargs.size
+        self.num_survivors = kwargs.num_survivors
+        self.num_engines = kwargs.num_survivors
+        self.black_and_white = kwargs.black_and_white
         self.agents = []
         self.history = dict()
         self.history['total_rewards'] = []
         self.history['runtime'] = []
-        self.max_steps = max_steps
-        self.mode = mode
-        self.similar_penalty = similar_penalty
-        self.rom_id = rom_id
+        self.max_steps = kwargs.max_steps
+        self.mode = kwargs.mode
+        self.similar_penalty = kwargs.similar_penalty
+        self.rom_id = kwargs.rom_id
         for ID in range(self.size):
             self.agents.append(Agent(ID = ID, black_and_white = self.black_and_white, movement= movement, rom_id = self.rom_id, buffer = buffer, patience = patience, max_steps = max_steps, freq = freq, intensity = intensity, fps = fps))
         self.new_ID = ID + 1
@@ -220,7 +220,7 @@ class Generation:
             .output {
                 display: flex;
                 align-items: left;
-                text-align: left;
+                text-align: left    ;
             }
             </style>
             """))
