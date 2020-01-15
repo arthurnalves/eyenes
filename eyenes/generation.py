@@ -14,12 +14,27 @@ import shutil
 from mpl_toolkits.axes_grid1 import ImageGrid       
 from IPython.display import display, HTML
 
+
+default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
+         'max_steps': 9999, 'freq': .25, 'buffer': 3,
+        'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
+        'num_survivors': 1, 'similar_penalty': 1, 'mode': 'sequential'}
+
 class Generation:
 
     def __init__(self, **kwargs):
+
+        #default kwargs (find out how to do this properly)
+        for key, value in default_kwargs.items():
+            setattr(self, key, value)
+
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.agents = []
+
+        self.delete_standard_folders()
+        self.create_standard_folders()
+        self.save_kwargs(kwargs)
 
         self.history = dict()
         self.history['total_rewards'] = []
@@ -38,6 +53,9 @@ class Generation:
             if verbose:
                 print('{} created'.format(dirname))
 
+    def save_kwargs(self, kwargs):
+        pickle.dump(kwargs, open('pickled/hyper_parameters.pkl','wb'))
+
     def create_standard_folders(self):
         self.create_dir('pickled')
         self.create_dir('pickled/generation')
@@ -49,7 +67,6 @@ class Generation:
 
     def delete_standard_folders(self):
         #!/usr/bin/python
-    
 
         # Get directory name
         mydir= 'pickled'

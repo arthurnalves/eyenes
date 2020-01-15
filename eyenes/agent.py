@@ -64,7 +64,7 @@ class Agent:
         if output_vec[1] == 1:
             button_list.append('up')
         elif output_vec[1] == -1:
-            button_list.append('right')
+            button_list.append('down')
 
         if output_vec[2] == 1:
             button_list.append('A')

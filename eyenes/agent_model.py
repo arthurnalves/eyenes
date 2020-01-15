@@ -51,18 +51,20 @@ class AgentModel:
         c = self.input_shape[-1]
 
         self.model = Sequential()
+        
         self.model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
         
         self.model.add(AveragePooling2D((2,2)))
-        self.model.add(SeparableConv2D(c, 4, activation = 'relu', strides = (4,4), padding="same"))
+        self.model.add(SeparableConv2D(c, 4, activation = custom_activation, strides = (4,4), padding="same"))
 
-        self.model.add(Conv2D(c*2, 16, activation = 'relu', strides=(2, 2), padding="same"))
-        self.model.add(Conv2D(c*4, 8, activation = 'relu', strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*2, 16, activation = custom_activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*4, 8,  activation = custom_activation, strides=(2, 2), padding="same"))
 
         self.model.add(Flatten())
         self.model.add(Dense(100, activation = custom_activation))
-        self.model.add(Dense(20, activation = custom_activation))
+        self.model.add(Dense(50,  activation = custom_activation))
+        self.model.add(Dense(10,  activation = custom_activation))
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
         self.model.add(Dense(self.output_dim, activation = custom_activation))
