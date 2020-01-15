@@ -43,6 +43,7 @@ class AgentModel:
         else:
             self.eye_output_dim = eye_output_dim
         self.start_model()
+        self.set_zero_weights()
 
     def start_model(self):
         w, h, _ = self.input_shape
@@ -51,7 +52,7 @@ class AgentModel:
         c = self.input_shape[-1]
 
         self.model = Sequential()
-        
+
         self.model.add(Lambda(lambda x: x/255., batch_input_shape = np.append(1, self.input_shape)))        
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
         
@@ -68,7 +69,13 @@ class AgentModel:
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
         self.model.add(Dense(self.output_dim, activation = custom_activation))
-        
+    
+    def set_zero_weights(self):
+        zero_weights = []
+        for weight in self.model.get_weights():
+             zero_weights.append(np.zeros(np.shape(weight)))
+        self.model.set_weights(zero_weights)
+
     def mutate(self, freq, intensity):
         mutated_weights = []
         for weight in self.model.get_weights():

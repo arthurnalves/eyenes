@@ -15,12 +15,12 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from IPython.display import display, HTML
 
 
-default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
+class Generation:
+
+    default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
          'max_steps': 9999, 'freq': .25, 'buffer': 3,
         'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
         'num_survivors': 1, 'similar_penalty': 1, 'mode': 'sequential'}
-
-class Generation:
 
     def __init__(self, **kwargs):
 
@@ -160,7 +160,7 @@ class Generation:
 
     def print_history(self):
 
-        f, (ax1, ax2) = plt.subplots(1,2,figsize=(12,6))
+        f, (ax1, ax2) = plt.subplots(1,2,figsize=(16, 7))
 
         ax1.plot(self.history['total_rewards'])
         ax1.set_title('Reward History')
@@ -175,8 +175,11 @@ class Generation:
         plt.show()
 
     def evolution_step(self, max_steps = 500, plot = False, monitor = False):
-        start_time = time.time()
         
+        clear_output(wait = True)
+        
+        start_time = time.time()
+
         if self.mode == 'parallel':
             rewards = self.parallel_run(max_steps = max_steps)
             for agent, reward in zip(self.agents, rewards):
@@ -195,13 +198,18 @@ class Generation:
             self.top_rewards.append(top_reward)
             self.agents[agent_id].save_model()
 
-            if monitor:
-                directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
-                self.agents[agent_id].run(mode = 'monitor', directory = directory)
+
+        if monitor:
+            directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
+            self.agents[agent_id].run(mode = 'monitor', directory = directory)
         
         end_time = time.time()
         self.history['runtime'].append(end_time - start_time)
         
+
+        self.agents[np.argmax(rewards)].play_video(width = 500, height = 375)
+    
+
         start_time = time.time()
         self.replace()
         self.replication()
@@ -214,5 +222,4 @@ class Generation:
         
             
         if plot:
-            clear_output(wait = True)
             self.print_history() 
