@@ -27,7 +27,7 @@ def custom_activation(x):
 
 class AgentModel:
     
-    def __init__(self, buffer, input_shape, output_dim, black_and_white = False, eye_output_dim = 64, activation = custom_activation):
+    def __init__(self, buffer, input_shape, output_dim, black_and_white = False, eye_output_dim = 64):
         self.buffer = buffer
         w, h, c = input_shape
         self.black_and_white = black_and_white
@@ -37,7 +37,6 @@ class AgentModel:
             self.input_shape = (w, h, c*buffer)
 
         self.output_dim = output_dim
-        self.activation = activation
         self.layer_prob = .25
         if eye_output_dim == None:
             self.eye_output_dim = output_dim
@@ -48,7 +47,6 @@ class AgentModel:
     def start_model(self):
         w, h, _ = self.input_shape
         max_dim = max([w,h])
-        activation = self.activation
 
         c = self.input_shape[-1]
 
@@ -57,23 +55,17 @@ class AgentModel:
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
         
         self.model.add(AveragePooling2D((2,2)))
-        self.model.add(SeparableConv2D(c, 4, strides = (4,4), padding="same"))
-        self.model.add(Activation(self.activation))
-        
-        self.model.add(Conv2D(c*2, 16, strides=(2, 2), padding="same"))
-        self.model.add(Activation(self.activation))
-        self.model.add(Conv2D(c*4, 8, strides=(2, 2), padding="same"))
-        self.model.add(Activation(self.activation))
+        self.model.add(SeparableConv2D(c, 4, activation = 'relu', strides = (4,4), padding="same"))
+
+        self.model.add(Conv2D(c*2, 16, activation = 'relu', strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*4, 8, activation = 'relu', strides=(2, 2), padding="same"))
 
         self.model.add(Flatten())
-        self.model.add(Dense(400))
-        self.model.add(Activation(self.activation))
-        self.model.add(Dense(20))
-        self.model.add(Activation(self.activation))
-        
+        self.model.add(Dense(100, activation = custom_activation))
+        self.model.add(Dense(20, activation = custom_activation))
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
-        self.model.add(Dense(self.output_dim, activation = 'softmax'))
+        self.model.add(Dense(self.output_dim, activation = custom_activation))
         
     def mutate(self, freq, intensity):
         mutated_weights = []

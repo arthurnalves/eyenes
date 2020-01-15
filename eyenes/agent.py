@@ -1,6 +1,6 @@
 from nes_py.wrappers import JoypadSpace
+from eyenes.custom_joypad import CustomJoypad
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 from gym import wrappers
 from IPython.display import Video
 import io
@@ -30,14 +30,13 @@ class Agent:
         'NOOP':   0b00000000,
     }
 
-    def __init__(self, ID = -1, movement = MOVEMENT, black_and_white = None, rom_id = 'SuperMarioBros-v0', update = ['reward'], buffer = 3, patience = 5, max_steps = 500, freq = .25, intensity = .25, fps = 5):
+    def __init__(self, ID = -1, black_and_white = None, rom_id = 'SuperMarioBros-v0', update = ['reward'], buffer = 3, patience = 5, max_steps = 500, freq = .25, intensity = .25, fps = 5):
         
         self.buffer = buffer
         self.freq = freq
         self.black_and_white = black_and_white
         self.intensity = intensity
         self.rom_id = rom_id
-        self.movement = movement
         self.env = self.make_env()
         self.start_model()
         self.update = update
@@ -53,7 +52,28 @@ class Agent:
         self.video = None
         for _ in range(buffer*fps):
             self.state.append(np.zeros(self.env.observation_space.shape))
-        
+       
+    def get_button_list(self, output_vec):
+        button_list = []
+
+        if output_vec[0] == 1:
+            button_list.append('right')
+        elif output_vec[0] == -1:
+            button_list.append('left')
+
+        if output_vec[1] == 1:
+            button_list.append('up')
+        elif output_vec[1] == -1:
+            button_list.append('right')
+
+        if output_vec[2] == 1:
+            button_list.append('A')
+
+        if output_vec[3] == 1:
+            button_list.append('B')
+
+        return button_list
+
     def play_video(self, width = 400, height = 300):
         self.video.width = width
         self.video.height = height
@@ -61,14 +81,14 @@ class Agent:
 
     def make_env(self, mode = None, directory = None):
         env = gym_super_mario_bros.make(self.rom_id)
-        env = JoypadSpace(env, self.movement)
+        env = CustomJoypad(env)
         if mode == 'monitor':
             env = wrappers.Monitor(env, directory, force = True)
         return env 
     
     def start_model(self):
         env = self.make_env()
-        self.model = AgentModel(buffer = self.buffer, black_and_white = self.black_and_white, input_shape = env.observation_space.shape, output_dim = env.action_space.n)
+        self.model = AgentModel(buffer = self.buffer, black_and_white = self.black_and_white, input_shape = env.observation_space.shape, output_dim = 4)
     
     def get_buffered_images(self):
         buffered_states = []
@@ -79,7 +99,8 @@ class Agent:
     def take_action(self):
         buffered_imgs = self.get_buffered_images()
         prediction = self.model.predict(np.expand_dims(np.concatenate(buffered_imgs, axis = 2), axis = 0))
-        return np.argmax(prediction)
+        button_list = self.get_button_list(prediction[0])
+        return button_list
 
     def reset_state(self):
         w, h, c = self.env.observation_space.shape

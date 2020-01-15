@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from eyenes.agent import Agent
 import pickle
-from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 import os
 import sys
 import shutil
@@ -21,8 +20,6 @@ class Generation:
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.agents = []
-        
-        self.movement = MOVEMENT
 
         self.history = dict()
         self.history['total_rewards'] = []
@@ -30,15 +27,16 @@ class Generation:
         
         for ID in range(self.size):
             self.agents.append(Agent(ID = ID, black_and_white = self.black_and_white, 
-                movement= self.movement, rom_id = self.rom_id, buffer = self.buffer, patience = self.patience, 
+                rom_id = self.rom_id, buffer = self.buffer, patience = self.patience, 
                 max_steps = self.max_steps, freq = self.freq, intensity = self.intensity, fps = self.fps))
         self.new_ID = ID + 1
         self.top_rewards = []
 
-    def create_dir(self, dirname):
+    def create_dir(self, dirname, verbose = False):
         if not os.path.exists(dirname):
             os.mkdir(dirname)
-            print('{} created'.format(dirname))
+            if verbose:
+                print('{} created'.format(dirname))
 
     def create_standard_folders(self):
         self.create_dir('pickled')
@@ -161,18 +159,6 @@ class Generation:
 
     def evolution_step(self, max_steps = 500, plot = False, monitor = False):
         start_time = time.time()
-
-        if monitor or plot:
-            display(HTML("""
-            <style>
-            .output {
-                display: flex;
-                align-items: center;
-                text-align: center;
-            }
-            </style>
-            """))
-
         
         if self.mode == 'parallel':
             rewards = self.parallel_run(max_steps = max_steps)
@@ -194,7 +180,6 @@ class Generation:
 
             if monitor:
                 directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
-                print(directory)
                 self.agents[agent_id].run(mode = 'monitor', directory = directory)
         
         end_time = time.time()
@@ -213,14 +198,4 @@ class Generation:
             
         if plot:
             clear_output(wait = True)
-            self.print_history()
-
-        display(HTML("""
-                <style>
-                .output {
-                    display: flex;
-                    align-items: left;
-                    text-align: left;
-                }
-                </style>
-                """))
+            self.print_history() 
