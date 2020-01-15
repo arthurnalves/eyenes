@@ -27,17 +27,6 @@ def custom_activation(x):
 
 class AgentModel:
     
-    model = None
-    eye_model = None
-    action_model = None
-    input_shape = None
-    output_dim = None
-    activation = None
-    buffer = None
-    eye_output_dim = None
-    layer_prob = None
-    black_and_white = None
-    
     def __init__(self, buffer, input_shape, output_dim, black_and_white = False, eye_output_dim = 64, activation = custom_activation):
         self.buffer = buffer
         w, h, c = input_shape

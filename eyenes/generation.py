@@ -10,21 +10,12 @@ from eyenes.agent import Agent
 import pickle
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 import os
+import sys
+import shutil
+from mpl_toolkits.axes_grid1 import ImageGrid   
+from IPython.display import display, HTML
 
 class Generation:
-    
-    num_engines = None
-    num_survivors = None
-    agents_per_engine = None
-    size = None
-    agents = None
-    history = None
-    new_ID = None
-    rc = None
-    max_steps = None
-    mode = None
-    similar_penalty = False
-    black_and_white = None
 
     def __init__(self, size, num_survivors, buffer, movement = MOVEMENT, black_and_white = None, rom_id = 'SuperMarioBros-v2', patience = 5, similar_penalty = 1, fps = 5, freq = .25, layer_prob = .25, intensity = .25, wait = 10, max_steps = 500, mode = 'sequential'):
         self.size = size
@@ -33,7 +24,7 @@ class Generation:
         self.black_and_white = black_and_white
         self.agents = []
         self.history = dict()
-        self.history['rewards'] = []
+        self.history['total_rewards'] = []
         self.history['runtime'] = []
         self.max_steps = max_steps
         self.mode = mode
@@ -49,12 +40,27 @@ class Generation:
             os.mkdir(dirname)
             print('{} created'.format(dirname))
 
-    def create_standard_dirs(self):
+    def create_standard_folders(self):
         self.create_dir('pickled')
         self.create_dir('pickled/generation')
         self.create_dir('pickled/generation/weights')
         self.create_dir('pickled/generation/lineages')
         self.create_dir('pickled/top_models')
+        self.create_dir('pickled/top_models/weights')
+        self.create_dir('pickled/top_models/videos')
+
+    def delete_standard_folders(self):
+        #!/usr/bin/python
+    
+
+        # Get directory name
+        mydir= 'pickled'
+
+        ## Try to remove tree; if failed show an error using try...except on screen
+        try:
+            shutil.rmtree(mydir)
+        except OSError as e:
+            print ("Error: %s - %s." % (e.filename, e.strerror))
 
     def save_generation(self):
         pickle.dump(self.history, open('pickled/generation/history.pkl','wb'))
@@ -137,20 +143,47 @@ class Generation:
             for a in range(1, self.size//self.num_survivors):
                 self.derive(e*self.size//self.num_survivors, e*self.size//self.num_survivors + a)
 
-    def evolution_step(self, max_steps = 500, chronometer = False, plot = False):
+    def print_history(self):
+
+        f, (ax1, ax2) = plt.subplots(1,2,figsize=(12,6))
+
+        ax1.plot(self.history['total_rewards'])
+        ax1.set_title('Reward History')
+        ax1.set_ylabel('Total Reward')
+        ax1.set_xlabel('Generation')
+
+        ax2.plot(self.history['runtime'])
+        ax2.set_title('Runtime History')
+        ax2.set_ylabel('time (s)')
+        ax2.set_xlabel('Generation')
+
+        plt.show()
+
+    def evolution_step(self, max_steps = 500, plot = False, monitor = False):
         start_time = time.time()
+
+        if monitor or plot:
+            display(HTML("""
+            <style>
+            .output {
+                display: flex;
+                align-items: center;
+                text-align: center;
+            }
+            </style>
+            """))
+
         
         if self.mode == 'parallel':
             rewards = self.parallel_run(max_steps = max_steps)
             for agent, reward in zip(self.agents, rewards):
                 agent.reward = reward
-            self.history['rewards'].append(sorted(rewards, reverse = True))
+            self.history['total_rewards'].append(sorted(rewards, reverse = True))
         
         
         elif self.mode == 'sequential':
-            self.sequential_run()
-            rewards = [agent.total_reward for agent in self.agents]
-            self.history['rewards'].append(sorted(rewards, reverse = True))
+            rewards = [agent.get_reward() for agent in self.agents]
+            self.history['total_rewards'].append(sorted(rewards, reverse = True))
                  
         top_reward = np.max(rewards)
         agent_id = np.argmax(rewards)
@@ -159,12 +192,14 @@ class Generation:
             self.top_rewards.append(top_reward)
             self.agents[agent_id].save_model()
 
+            if monitor:
+                directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
+                print(directory)
+                self.agents[agent_id].run(mode = 'monitor', directory = directory)
+        
         end_time = time.time()
         self.history['runtime'].append(end_time - start_time)
         
-        if chronometer:
-            print('Run time:', end_time - start_time)
-       
         start_time = time.time()
         self.replace()
         self.replication()
@@ -175,15 +210,17 @@ class Generation:
                 print(agent_pos, agent.total_reward)
         end_time = time.time()
         
-        if chronometer:
-            print('Replication time:', end_time - start_time)
             
         if plot:
             clear_output(wait = True)
-            plt.title('History')
-            plt.plot(self.history['rewards'])
-            plt.show()
-            plt.title('Run time')
-            plt.plot(self.history['runtime'])
-            plt.show()
-            
+            self.print_history()
+
+         display(HTML("""
+            <style>
+            .output {
+                display: flex;
+                align-items: left;
+                text-align: left;
+            }
+            </style>
+            """))

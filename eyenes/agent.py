@@ -5,7 +5,7 @@ from gym import wrappers
 from IPython.display import Video
 import io
 import base64
-from IPython.display import HTML
+from IPython.display import HTML, display
 import numpy as np
 from collections import deque
 import numpy as np
@@ -17,28 +17,7 @@ import pickle
 from eyenes.agent_model import AgentModel
 
 class Agent:
-    
-    eyemodel = None
-    model = None
-    state = None
-    total_reward = None
-    reward = None
-    done = None
-    info = None
-    next_state = None
-    update = None
-    buffer = None
-    freq = None
-    intensity = None
-    env = None
-    ID = None
-    lineage = None
-    max_steps = None
-    fps = None
-    lazy_penalty = None
-    patience = None
-    black_and_white = None
-    
+
     button_map = {
         'right':  0b10000000,
         'left':   0b01000000,
@@ -70,10 +49,16 @@ class Agent:
         self.patience = patience
         self.lazy_penalty = -30
         self.death_penalty = -50
+        self.total_reward = None
+        self.video = None
         for _ in range(buffer*fps):
             self.state.append(np.zeros(self.env.observation_space.shape))
         
-        
+    def play_video(self, width = 400, height = 300):
+        self.video.width = width
+        self.video.height = height
+        display(self.video)
+
     def make_env(self, mode = None, directory = None):
         env = gym_super_mario_bros.make(self.rom_id)
         env = JoypadSpace(env, self.movement)
@@ -126,15 +111,16 @@ class Agent:
             if step%self.fps == 0:
                 self.state.append(np.array(state))
             
-    def run(self, mode = None, directory = './gym-results/'):    
+    def run(self, mode = None, directory = None):  
+
         env = self.make_env(mode = mode, directory = directory)
-        self.reset_data()
         
+        self.reset_data()
         self.model.model.reset_states()
+        state = env.reset()
 
         resting = 0
         x_pos = 0
-        state = env.reset()
         prev_state = state
         done = False
         last_x_pos = 24
@@ -179,11 +165,12 @@ class Agent:
 
         if mode == 'monitor':
             file_name = directory + 'openaigym.video.%s.video000000.mp4'% env.file_infix
-            mp4 = Video(file_name, width = 600, height = 450)
-            display(mp4)
+            mp4 = Video(file_name, width = 400, height = 300)
+            self.video = mp4
 
         if mode == 'render':    
             env.close()
+
         self.total_reward += info['score']/10
         #self.total_reward += info['time']/10
                 
@@ -200,7 +187,6 @@ class Agent:
         self.lineage = copy.copy(other.lineage)
         if other.ID not in self.lineage:
             self.lineage.append(other.ID)
-            
         self.model.set_weights(copy.deepcopy(other.model.get_weights()))
 
     def mutate(self):
@@ -225,4 +211,4 @@ class Agent:
         plt.show()
 
     def save_model(self):
-        pickle.dump(self.model.model.get_weights(), open('pickled/top_models/' + str(self.total_reward) + '_weights.pkl', 'wb'))
+        pickle.dump(self.model.model.get_weights(), open('pickled/top_models/weights/' + str(self.total_reward) + '_weights.pkl', 'wb'))
