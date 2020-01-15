@@ -12,26 +12,26 @@ from gym_super_mario_bros.actions import COMPLEX_MOVEMENT as MOVEMENT
 import os
 import sys
 import shutil
-from mpl_toolkits.axes_grid1 import ImageGrid   
+from mpl_toolkits.axes_grid1 import ImageGrid       
 from IPython.display import display, HTML
 
 class Generation:
 
     def __init__(self, **kwargs):
-        self.size = kwargs.size
-        self.num_survivors = kwargs.num_survivors
-        self.num_engines = kwargs.num_survivors
-        self.black_and_white = kwargs.black_and_white
+        for key, value in kwargs.items():
+            setattr(self, key, value)
         self.agents = []
+        
+        self.movement = MOVEMENT
+
         self.history = dict()
         self.history['total_rewards'] = []
         self.history['runtime'] = []
-        self.max_steps = kwargs.max_steps
-        self.mode = kwargs.mode
-        self.similar_penalty = kwargs.similar_penalty
-        self.rom_id = kwargs.rom_id
+        
         for ID in range(self.size):
-            self.agents.append(Agent(ID = ID, black_and_white = self.black_and_white, movement= movement, rom_id = self.rom_id, buffer = buffer, patience = patience, max_steps = max_steps, freq = freq, intensity = intensity, fps = fps))
+            self.agents.append(Agent(ID = ID, black_and_white = self.black_and_white, 
+                movement= self.movement, rom_id = self.rom_id, buffer = self.buffer, patience = self.patience, 
+                max_steps = self.max_steps, freq = self.freq, intensity = self.intensity, fps = self.fps))
         self.new_ID = ID + 1
         self.top_rewards = []
 
@@ -215,12 +215,12 @@ class Generation:
             clear_output(wait = True)
             self.print_history()
 
-         display(HTML("""
-            <style>
-            .output {
-                display: flex;
-                align-items: left;
-                text-align: left    ;
-            }
-            </style>
-            """))
+        display(HTML("""
+                <style>
+                .output {
+                    display: flex;
+                    align-items: left;
+                    text-align: left;
+                }
+                </style>
+                """))
