@@ -1,32 +1,27 @@
-from keras.models import Sequential
-from keras.layers import Dense
-
 from keras.models import Sequential, Model
 from keras.layers import Dense, SeparableConv2D, Conv2D, LSTM, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Flatten, Reshape
 from keras.layers import Softmax, Input, Concatenate, Embedding, Activation, Lambda, Input
 from keras.utils import to_categorical
-from keras.optimizers import RMSprop
 from keras.models import model_from_json
 from keras.initializers import glorot_uniform
-from keras.activations import relu
 
 import numpy as np
 import random
 
 # Custom activation function
-from keras.layers import Activation
 from keras import backend as K
-from keras.utils.generic_utils import get_custom_objects
 from keras.backend import switch
 
 
 from keras import backend as K
+from keras.utils.generic_utils import get_custom_objects
 
-def custom_activation(x):
-    return K.switch(x > 1, K.ones_like(x), K.switch(x < -1, -K.ones_like(x), K.zeros_like(x)))
 
 class AgentModel:
-    
+
+    def binary_activation(x):
+        return K.switch(x > 1, K.ones_like(x), K.switch(x < -1, -K.ones_like(x), K.zeros_like(x)))
+
     def __init__(self, buffer, input_shape, output_dim, black_and_white = False, eye_output_dim = 64):
         self.buffer = buffer
         w, h, c = input_shape
@@ -36,6 +31,8 @@ class AgentModel:
         else:
             self.input_shape = (w, h, c*buffer)
 
+        self.activation = 'softsign'
+
         self.output_dim = output_dim
         self.layer_prob = .25
         if eye_output_dim == None:
@@ -44,6 +41,9 @@ class AgentModel:
             self.eye_output_dim = eye_output_dim
         self.start_model()
         self.set_zero_weights()
+
+    def activation(self, x):
+        return K.switch(x > 1, K.ones_like(x), K.switch(x < -1, -K.ones_like(x), K.zeros_like(x)))
 
     def start_model(self):
         w, h, _ = self.input_shape
@@ -57,18 +57,18 @@ class AgentModel:
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
         
         self.model.add(AveragePooling2D((2,2)))
-        self.model.add(SeparableConv2D(c, 4, activation = custom_activation, strides = (4,4), padding="same"))
+        self.model.add(SeparableConv2D(c, 4, activation = self.activation, strides = (4,4), padding="same"))
 
-        self.model.add(Conv2D(c*2, 16, activation = custom_activation, strides=(2, 2), padding="same"))
-        self.model.add(Conv2D(c*4, 8,  activation = custom_activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*2, 16, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*4, 8,  activation = self.activation, strides=(2, 2), padding="same"))
 
         self.model.add(Flatten())
-        self.model.add(Dense(100, activation = custom_activation))
-        self.model.add(Dense(50,  activation = custom_activation))
-        self.model.add(Dense(10,  activation = custom_activation))
+        self.model.add(Dense(100, activation = self.activation))
+        self.model.add(Dense(50,  activation = self.activation))
+        self.model.add(Dense(10,  activation = self.activation))
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
-        self.model.add(Dense(self.output_dim, activation = custom_activation))
+        self.model.add(Dense(self.output_dim, activation = self.activation))
     
     def set_zero_weights(self):
         zero_weights = []

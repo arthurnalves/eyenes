@@ -1,20 +1,17 @@
-from nes_py.wrappers import JoypadSpace
-from eyenes.custom_joypad import CustomJoypad
+from custom_joypad import CustomJoypad
+from model_class import AgentModel
+
 import gym_super_mario_bros
 from gym import wrappers
-from IPython.display import Video
-import io
-import base64
-from IPython.display import HTML, display
-import numpy as np
-from collections import deque
-import numpy as np
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
+
+from IPython.display import Video, HTML, display
+from collections import deque
 import copy
 import pickle
-
-from eyenes.agent_model import AgentModel
+import numpy as np
 
 class Agent:
 
@@ -56,20 +53,20 @@ class Agent:
     def get_button_list(self, output_vec):
         button_list = []
 
-        if output_vec[0] == 1:
+        if round(output_vec[0]) == 1:
             button_list.append('right')
-        elif output_vec[0] == -1:
+        elif round(output_vec[0]) == -1:
             button_list.append('left')
 
-        if output_vec[1] == 1:
+        if round(output_vec[1]) == 1:
             button_list.append('up')
-        elif output_vec[1] == -1:
+        elif round(output_vec[1]) == -1:
             button_list.append('down')
 
-        if output_vec[2] == 1:
+        if round(output_vec[2]) == 1:
             button_list.append('A')
 
-        if output_vec[3] == 1:
+        if round(output_vec[3]) == 1:
             button_list.append('B')
 
         return button_list
@@ -168,13 +165,13 @@ class Agent:
             resting += 1
                 
             if resting > self.patience*60:
-                self.total_reward += self.lazy_penalty
-                self.total_reward += info['score']/10
+                #self.total_reward += self.lazy_penalty
+                #self.total_reward += info['score']/10
                 break
                 
             if info['life'] < 2: 
-                self.total_reward += self.death_penalty
-                self.total_reward += info['score']/10
+                #self.total_reward += self.death_penalty
+                #self.total_reward += info['score']/10
                 break
 
             self.gather_data(step, state, reward, done, info, next_state)

@@ -1,37 +1,61 @@
 import subprocess
 import ipyparallel as ipp
 import time
-from IPython.display import clear_output
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
-from eyenes.agent import Agent
 import pickle
 import os
 import sys
-import shutil
-from mpl_toolkits.axes_grid1 import ImageGrid       
+import shutil     
 from IPython.display import display, HTML
 
+from agent_class import Agent
+
+def printed_wait(wait_time, message = 'Wait is over'):
+    clear_output(wait = True)
+    for i in range(wait_time):
+        print('Waiting {}s'.format(wait_time - i))
+        time.sleep(1)
+        clear_output(wait = True)
+    print(message)
+    time.sleep(1)
+
+
+def flatten(list_of_lists):
+    return [elem for sublist in list_of_lists for elem in sublist]
+    
+def printed_wait(wait_time, message):
+    clear_output(wait = True)
+    for i in range(wait_time):
+        print('Waiting {}s'.format(wait_time - i))
+        time.sleep(1)
+        clear_output(wait = True)
+    print(message)
+    time.sleep(1)
 
 class Generation:
 
     default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
-         'max_steps': 9999, 'freq': .25, 'buffer': 3,
-        'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
-        'num_survivors': 1, 'similar_penalty': 1, 'mode': 'sequential'}
+        'max_steps': 9999, 'freq': .25, 'buffer': 3,  'num_engines': 4,
+        'layer_prob': .5, 'intensity': 10, 'fps': 3, 'patience': 5,
+        'num_survivors': 1, 'similar_penalty': 1, 'rc': None, 'path_name': 'C://Users//arthu//git//eyenes//eyenes'}
 
     def __init__(self, **kwargs):
 
         #default kwargs (find out how to do this properly)
-        for key, value in default_kwargs.items():
+        for key, value in self.default_kwargs.items():
             setattr(self, key, value)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
-        self.agents = []
 
+        if self.mode == 'parallel':
+            pass
+            #self.parallel_start()
+
+        self.agents = []
         self.delete_standard_folders()
         self.create_standard_folders()
         self.save_kwargs(kwargs)
@@ -46,6 +70,18 @@ class Generation:
                 max_steps = self.max_steps, freq = self.freq, intensity = self.intensity, fps = self.fps))
         self.new_ID = ID + 1
         self.top_rewards = []
+
+    def start_engines(self):
+        subprocess.Popen(["ipcluster", "stop"])
+        printed_wait(10, 'Clusters stopped')
+        subprocess.Popen(["ipcluster", "start", "-n={:d}".format(self.num_engines)])
+        printed_wait(30, 'Clusters started')
+        self.rc = ipp.Client()
+        self.dview = self.rc[:]
+
+    def remote_import(self):
+        with self.rc[:].sync_imports():
+            from gen_class import Generation
 
     def create_dir(self, dirname, verbose = False):
         if not os.path.exists(dirname):
@@ -96,15 +132,6 @@ class Generation:
             agent.lineage = pickle.load(open('pickled/generation/lineages/lineage_' + str(i) + '.pkl', 'rb'))
 
 
-    def start_engines(self, num_engines):
-        self.agents_per_engine = self.size//self.num_engines
-
-        subprocess.Popen(["ipcluster", "stop"])
-        time.sleep(5)
-        subprocess.Popen(["ipcluster", "start", "-n={:d}".format(num_engines)])
-        
-        self.rc = ipp.Client()
-     
     def same_as_parent(self, pos):
         ancestor_pos = pos//self.num_survivors*self.num_survivors
         return ancestor_pos != pos and self.agents[ancestor_pos].total_reward == self.agents[pos].total_reward
@@ -142,16 +169,11 @@ class Generation:
         self.new_ID += 1
         self.agents[child_pos].mutate()
    
-    def sequential_run(self):
-        for agent in self.agents:
-            agent.get_reward()
-
     def parallel_run(self):
-        dview = self.rc[:]
-        dview.scatter('agents', self.agents)
-        rewards = [agent.get_reward() for agent in agents]
-        return dview.gather('rewards').get()    
-    
+        return self.rc[:].map(lambda agent: agent.get_reward(), self.agents).get()
+
+    def sequential_run(self):
+        return [agent.get_reward() for agent in self.agents]
     
     def replication(self):
         for e in range(self.num_survivors):
@@ -174,42 +196,34 @@ class Generation:
 
         plt.show()
 
-    def evolution_step(self, max_steps = 500, plot = False, monitor = False):
+    def evolution_step(self, rewards = None, max_steps = 500, plot = False, monitor = False):
         
-        clear_output(wait = True)
-        
+               
         start_time = time.time()
+        
+        if self.mode == 'sequential':
+            rewards = self.sequential_run()
+        else:
+            rewards = self.parallel_run()
 
-        if self.mode == 'parallel':
-            rewards = self.parallel_run(max_steps = max_steps)
-            for agent, reward in zip(self.agents, rewards):
-                agent.reward = reward
-            self.history['total_rewards'].append(sorted(rewards, reverse = True))
-        
-        
-        elif self.mode == 'sequential':
-            rewards = [agent.get_reward() for agent in self.agents]
-            self.history['total_rewards'].append(sorted(rewards, reverse = True))
-                 
+        self.history['total_rewards'].append(sorted(rewards, reverse = True))
+
         top_reward = np.max(rewards)
         agent_id = np.argmax(rewards)
 
         if top_reward not in self.top_rewards:
             self.top_rewards.append(top_reward)
             self.agents[agent_id].save_model()
+            
+            if monitor:
+                directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
+                self.agents[agent_id].run(mode = 'monitor', directory = directory)
 
 
-        if monitor:
-            directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
-            self.agents[agent_id].run(mode = 'monitor', directory = directory)
-        
         end_time = time.time()
+
         self.history['runtime'].append(end_time - start_time)
         
-
-        self.agents[np.argmax(rewards)].play_video(width = 500, height = 375)
-    
-
         start_time = time.time()
         self.replace()
         self.replication()
@@ -219,7 +233,11 @@ class Generation:
             for agent_pos, agent in enumerate(self.agents):
                 print(agent_pos, agent.total_reward)
         end_time = time.time()
-        
-            
+    
+        clear_output(wait = True)
+
+        if monitor:
+            self.agents[np.argmax(rewards)].play_video(width = 500, height = 375)
+
         if plot:
-            self.print_history() 
+            self.print_history()
