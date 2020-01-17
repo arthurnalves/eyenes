@@ -38,8 +38,8 @@ def printed_wait(wait_time, message):
 class Generation:
 
     default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
-        'max_steps': 9999, 'freq': .25, 'buffer': 3,  'num_engines': 4,
-        'layer_prob': .5, 'intensity': 10, 'fps': 3, 'patience': 5,
+        'max_steps': 9999, 'freq': .5, 'buffer': 3,  'num_engines': 4,
+        'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
         'num_survivors': 1, 'similar_penalty': 1, 'rc': None, 'path_name': 'C://Users//arthu//git//eyenes//eyenes'}
 
     def __init__(self, **kwargs):
@@ -206,18 +206,23 @@ class Generation:
         else:
             rewards = self.parallel_run()
 
+        for agent, reward in zip(self.agents, rewards):
+            agent.total_reward = reward
+
         self.history['total_rewards'].append(sorted(rewards, reverse = True))
 
         top_reward = np.max(rewards)
         agent_id = np.argmax(rewards)
+        best_agent = self.agents[agent_id]
+
 
         if top_reward not in self.top_rewards:
             self.top_rewards.append(top_reward)
-            self.agents[agent_id].save_model()
-            
+            best_agent.save_model()
+
             if monitor:
-                directory = 'pickled/top_models/videos/' + str(len(self.top_rewards)) + '/'
-                self.agents[agent_id].run(mode = 'monitor', directory = directory)
+                directory = 'pickled/top_models/videos/' + str(best_agent.total_reward) + '/'
+                best_agent.run(mode = 'monitor', directory = directory)
 
 
         end_time = time.time()
@@ -237,7 +242,7 @@ class Generation:
         clear_output(wait = True)
 
         if monitor:
-            self.agents[np.argmax(rewards)].play_video(width = 500, height = 375)
+            best_agent.play_video(width = 500, height = 375)
 
         if plot:
             self.print_history()

@@ -13,6 +13,17 @@ import copy
 import pickle
 import numpy as np
 
+def list_dist(list1, list2):
+    dist = 0
+    combined_list = list1 + list2
+    
+    for elem in combined_list:
+        if elem not in list1:
+            dist += 1
+        elif elem not in list2:
+            dist +=1
+    return dist
+
 class Agent:
 
     button_map = {
@@ -47,6 +58,7 @@ class Agent:
         self.death_penalty = -50
         self.total_reward = None
         self.video = None
+        self.button_penalty = 5
         for _ in range(buffer*fps):
             self.state.append(np.zeros(self.env.observation_space.shape))
        
@@ -72,6 +84,10 @@ class Agent:
         return button_list
 
     def play_video(self, width = 400, height = 300):
+        
+        if self.video == None:
+            directory = 'pickled/top_models/videos/' + str(self.total_reward) + '/'
+            self.run(mode = 'monitor', directory = directory)
         self.video.width = width
         self.video.height = height
         display(self.video)
@@ -143,13 +159,18 @@ class Agent:
         done = False
         last_x_pos = 24
             
+        prev_action = self.take_action()
+
         for step in range(self.max_steps):
 
             if step%self.fps == 0:
                 action = self.take_action()
                 
             next_state, reward, done, info = env.step(action)
-            
+
+            reward += self.button_penalty*list_dist(prev_action, action)
+            prev_action = action
+
             #advancing check
             if info['x_pos'] > x_pos:
                 x_pos = info['x_pos']
@@ -163,15 +184,11 @@ class Agent:
             last_x_pos = info['x_pos']
 
             resting += 1
-                
-            if resting > self.patience*60:
-                #self.total_reward += self.lazy_penalty
-                #self.total_reward += info['score']/10
+
+            if info['life'] < 2:
                 break
                 
-            if info['life'] < 2: 
-                #self.total_reward += self.death_penalty
-                #self.total_reward += info['score']/10
+            if resting > self.patience*60:
                 break
 
             self.gather_data(step, state, reward, done, info, next_state)
@@ -181,16 +198,15 @@ class Agent:
             if mode == 'render':
                 env.render()
 
+            if done:
+                break
+                
         if mode == 'monitor':
             file_name = directory + 'openaigym.video.%s.video000000.mp4'% env.file_infix
             mp4 = Video(file_name, width = 400, height = 300)
             self.video = mp4
 
-        if mode == 'render':    
-            env.close()
-
-        self.total_reward += info['score']/10
-        #self.total_reward += info['time']/10
+        env.close()
                 
     def get_reward(self):
         if self.total_reward == None:

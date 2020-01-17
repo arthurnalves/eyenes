@@ -57,14 +57,18 @@ class AgentModel:
         self.model.add(ZeroPadding2D(padding = ((max_dim - w)//2, (max_dim - h)//2)))
         
         self.model.add(AveragePooling2D((2,2)))
-        self.model.add(SeparableConv2D(c, 4, activation = self.activation, strides = (4,4), padding="same"))
+        self.model.add(SeparableConv2D(c*2, 4, activation = self.activation, strides = (4,4), padding="same"))
 
-        self.model.add(Conv2D(c*2, 16, activation = self.activation, strides=(2, 2), padding="same"))
-        self.model.add(Conv2D(c*4, 8,  activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*4,  4, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*8,  4, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*16, 4, activation = self.activation, strides=(2, 2), padding="same"))
 
         self.model.add(Flatten())
         self.model.add(Dense(100, activation = self.activation))
-        self.model.add(Dense(50,  activation = self.activation))
+        self.model.add(Dense(100, activation = self.activation))    
+        self.model.add(Dense(100, activation = self.activation))
+        self.model.add(Dense(100, activation = self.activation))
+        self.model.add(Dense(100, activation = self.activation))
         self.model.add(Dense(10,  activation = self.activation))
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))
         #self.model.add(LSTM(self.output_dim, activation = self.activation, stateful = True))
