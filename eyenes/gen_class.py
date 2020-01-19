@@ -38,7 +38,7 @@ def printed_wait(wait_time, message):
 class Generation:
 
     default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
-        'max_steps': 9999, 'freq': .5, 'buffer': 3,  'num_engines': 4,
+        'max_steps': 9999, 'freq': .5, 'buffer': 3,  'num_engines': 4, 'actions': None,
         'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
         'num_survivors': 1, 'similar_penalty': 1, 'rc': None, 'path_name': 'C://Users//arthu//git//eyenes//eyenes'}
 
@@ -56,8 +56,16 @@ class Generation:
             #self.parallel_start()
 
         self.agents = []
-        self.delete_standard_folders()
-        self.create_standard_folders()
+
+        if 'delete' in self.actions:
+            self.delete_standard_folders()
+        
+        if 'create' in self.actions:
+            self.create_standard_folders()
+        
+        if 'load' in self.actions:
+            self.load_generation()
+            
         self.save_kwargs(kwargs)
 
         self.history = dict()
@@ -76,12 +84,12 @@ class Generation:
         printed_wait(10, 'Clusters stopped')
         subprocess.Popen(["ipcluster", "start", "-n={:d}".format(self.num_engines)])
         printed_wait(30, 'Clusters started')
-        self.rc = ipp.Client()
-        self.dview = self.rc[:]
 
     def remote_import(self):
+        self.rc = ipp.Client()
         with self.rc[:].sync_imports():
             from gen_class import Generation
+        self.rc.close()
 
     def create_dir(self, dirname, verbose = False):
         if not os.path.exists(dirname):
@@ -170,7 +178,14 @@ class Generation:
         self.agents[child_pos].mutate()
    
     def parallel_run(self):
-        return self.rc[:].map(lambda agent: agent.get_reward(), self.agents).get()
+        self.rc = ipp.Client()
+        self.dview = self.rc[:]
+        rewards = self.rc[:].map(lambda agent: agent.get_reward(), self.agents).get()
+        self.rc.close()
+        self.dview.results.clear()
+        self.rc.results.clear()
+        self.rc.metadata.clear()
+        return rewards
 
     def sequential_run(self):
         return [agent.get_reward() for agent in self.agents]
