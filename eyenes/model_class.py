@@ -59,15 +59,13 @@ class AgentModel:
         self.model.add(AveragePooling2D((2,2)))
         self.model.add(SeparableConv2D(c*2, 4, activation = self.activation, strides = (4,4), padding="same"))
 
-        self.model.add(Conv2D(c*4,  4, activation = self.activation, strides=(2, 2), padding="same"))
-        self.model.add(Conv2D(c*8,  4, activation = self.activation, strides=(2, 2), padding="same"))
-        self.model.add(Conv2D(c*16, 4, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*4,  2, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*8,  2, activation = self.activation, strides=(2, 2), padding="same"))
+        self.model.add(Conv2D(c*16, 2, activation = self.activation, strides=(2, 2), padding="same"))
 
         self.model.add(Flatten())
         self.model.add(Dense(100, activation = self.activation))
         self.model.add(Dense(100, activation = self.activation))    
-        self.model.add(Dense(100, activation = self.activation))
-        self.model.add(Dense(100, activation = self.activation))
         self.model.add(Dense(100, activation = self.activation))
         self.model.add(Dense(10,  activation = self.activation))
         #self.model.add(Reshape(np.append(1, self.eye_output_dim*2)))

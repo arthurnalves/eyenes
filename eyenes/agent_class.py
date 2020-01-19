@@ -58,7 +58,7 @@ class Agent:
         self.death_penalty = -50
         self.total_reward = None
         self.video = None
-        self.button_penalty = 5
+        self.button_penalty = -2
         for _ in range(buffer*fps):
             self.state.append(np.zeros(self.env.observation_space.shape))
        
@@ -205,8 +205,8 @@ class Agent:
             file_name = directory + 'openaigym.video.%s.video000000.mp4'% env.file_infix
             mp4 = Video(file_name, width = 400, height = 300)
             self.video = mp4
-
-        env.close()
+        else:
+            env.close()
                 
     def get_reward(self):
         if self.total_reward == None:
