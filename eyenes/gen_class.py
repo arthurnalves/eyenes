@@ -39,7 +39,7 @@ class Generation:
 
     default_kwargs = {'size': 2, 'black_and_white': True, 'rom_id': 'SuperMarioBros-v0', 
         'max_steps': 9999, 'freq': .5, 'buffer': 3,  'num_engines': 4, 'actions': None,
-        'layer_prob': .25, 'intensity': 10, 'fps': 3, 'patience': 5,
+        'layer_prob': .25, 'intensity': 1, 'fps': 3, 'patience': 5,
         'num_survivors': 1, 'similar_penalty': 1, 'rc': None, 'path_name': 'C://Users//arthu//git//eyenes//eyenes'}
 
     def __init__(self, **kwargs):
@@ -51,33 +51,30 @@ class Generation:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        if self.mode == 'parallel':
-            pass
-            #self.parallel_start()
-
-        self.agents = []
-
-        if 'delete' in self.actions:
-            self.delete_standard_folders()
-        
-        if 'create' in self.actions:
-            self.create_standard_folders()
-        
-        if 'load' in self.actions:
-            self.load_generation()
-            
         self.save_kwargs(kwargs)
 
         self.history = dict()
         self.history['total_rewards'] = []
         self.history['runtime'] = []
-        
+            
+        self.agents = []
         for ID in range(self.size):
             self.agents.append(Agent(ID = ID, black_and_white = self.black_and_white, 
                 rom_id = self.rom_id, buffer = self.buffer, patience = self.patience, 
                 max_steps = self.max_steps, freq = self.freq, intensity = self.intensity, fps = self.fps))
+
         self.new_ID = ID + 1
         self.top_rewards = []
+        
+        if 'restart' in self.actions:
+            print('Deleting folders')
+            self.delete_standard_folders()
+            print('Creating folders')
+            self.create_standard_folders()
+        
+        if 'resume' in self.actions:
+            print('Loading models')
+            self.load_generation()
 
     def start_engines(self):
         subprocess.Popen(["ipcluster", "stop"])
@@ -133,6 +130,7 @@ class Generation:
             for lineage_id in agent.lineage:
                 if lineage_id > current_id:
                     current_id = lineage_id
+
         self.new_ID = current_id
         self.history = pickle.load(open('pickled/generation/history.pkl','rb'))
         for i, agent in enumerate(self.agents):
@@ -181,10 +179,13 @@ class Generation:
         self.rc = ipp.Client()
         self.dview = self.rc[:]
         rewards = self.rc[:].map(lambda agent: agent.get_reward(), self.agents).get()
+        self.rc.purge_everything()
         self.rc.close()
         self.dview.results.clear()
         self.rc.results.clear()
         self.rc.metadata.clear()
+        del self.dview
+        del self.rc
         return rewards
 
     def sequential_run(self):

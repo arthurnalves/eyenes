@@ -65,20 +65,20 @@ class Agent:
     def get_button_list(self, output_vec):
         button_list = []
 
-        if round(output_vec[0]) == 1:
+        if round(output_vec[0]) > .5:
             button_list.append('right')
-        elif round(output_vec[0]) == -1:
+        if round(output_vec[0]) < -.5:
             button_list.append('left')
 
-        if round(output_vec[1]) == 1:
+        if round(output_vec[1]) > .5:
             button_list.append('up')
-        elif round(output_vec[1]) == -1:
+        if round(output_vec[1]) < -.5:
             button_list.append('down')
 
-        if round(output_vec[2]) == 1:
+        if round(output_vec[2]) > .5:
             button_list.append('A')
 
-        if round(output_vec[3]) == 1:
+        if round(output_vec[3]) > .5:
             button_list.append('B')
 
         return button_list
