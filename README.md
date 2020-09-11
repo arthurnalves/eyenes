@@ -3,9 +3,11 @@ Requirements:
 keras
 tensorflow
 gym_super_mario_bros (gym + nes-py)
-
+Windows Kits
 
 In order to install nes-py on Windows:
+
+0 - Install SDK Windows from: https://developer.microsoft.com/fr-fr/windows/downloads/windows-10-sdk/
 
 1 - Locate rc.exe and rcdll.dll (on Windows Kits)
 
