@@ -1,8 +1,11 @@
-Requirements:
+#Requirements:
 
 keras
+
 tensorflow
+
 gym_super_mario_bros (gym + nes-py)
+
 Windows Kits
 
 In order to install nes-py on Windows:
